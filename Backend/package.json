@@ -1,0 +1,17 @@
+{
+  "type": "module",
+  "dependencies": {
+    "@google-cloud/vertexai": "^1.10.0",
+    "@tailwindcss/vite": "^4.1.10",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "mongodb": "^6.17.0",
+    "mongoose": "^8.15.2"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.5",
+    "tailwindcss": "^4.1.10"
+  }
+}
