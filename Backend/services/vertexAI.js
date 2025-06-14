@@ -1,66 +1,67 @@
-import { VertexAI } from '@google-cloud/vertexai';
+import { PredictionServiceClient } from '@google-cloud/aiplatform';
 import dotenv from 'dotenv';
-dotenv.config({ path: '../.env' }); 
 
-// Initialize the Vertex AI client
-const vertexAI = new VertexAI({
-  project: process.env.GOOGLE_PROJECT_ID, 
-  location: 'us-central1',
-});
+dotenv.config({ path: '../.env' });
 
-// Get the generative model
-const generativeModel = vertexAI.getGenerativeModel({
-  model: 'gemini-pro',
-});
+// === Vertex AI Initialization ===
+const client = new PredictionServiceClient();
 
-// Check if embedding model is available
-let embeddingModel = null;
+// === Embedding Model Setup ===
+const model = 'textembedding-gecko@003'; // Replace with your desired model
 
-// Check if a method for embedding models exists
-try {
-  embeddingModel = vertexAI.getModel ? vertexAI.getModel('textembedding-gecko@003') : null;
-} catch (error) {
-  console.error('Error initializing embedding model:', error);
-}
-
-// If the embedding model is available, define the getEmbeddings function
-const getEmbeddings = async (texts) => {
-  if (!embeddingModel) {
-    console.log('Embedding model not available or method changed');
+// === Get Embeddings ===
+export const getEmbeddings = async (texts) => {
+  if (!Array.isArray(texts) || texts.length === 0) {
+    console.warn('⚠️ getEmbeddings called with empty input');
     return [];
   }
 
   try {
-    const embeddings = await embeddingModel.getEmbeddings(texts);
-    return embeddings.map((embedding) => embedding.values);
+    const endpoint = `projects/${process.env.GOOGLE_PROJECT_ID}/locations/us-central1/publishers/google/models/${model}`;
+    const instances = texts.map(text => ({ content: text }));
+    const parameters = { outputDimensionality: 512 }; // Adjust as needed
+
+    const request = {
+      endpoint,
+      instances,
+      parameters,
+    };
+
+    const [response] = await client.predict(request);
+    const embeddings = response.predictions.map(p => p.embedding.values);
+    return embeddings;
   } catch (error) {
-    console.error('Error getting embeddings:', error);
-    return [];
+    console.error('❌ Error fetching embeddings:', error.message);
+    return texts.map(() => []);
   }
 };
 
-// Generate code using the generative model
+// === Generate Code ===
 export const generateCode = async (prompt) => {
   try {
-    const response = await generativeModel.generateContent(prompt);
-    return response.response.candidates[0].content.parts[0].text;
+    const response = await client.generateText({
+      model: 'gemini-pro',
+      prompt,
+    });
+    return response.text;
   } catch (error) {
-    console.error('Error generating code:', error);
+    console.error('❌ Error generating code:', error.message);
     return '';
   }
 };
 
-// Analyze code for security vulnerabilities
+// === Analyze Vulnerability ===
 export const analyzeVulnerability = async (code) => {
   const prompt = `Analyze this API implementation for security vulnerabilities:\n\n${code}\n\nReport:`;
+
   try {
-    const response = await generativeModel.generateContent(prompt);
-    return response.response.candidates[0].content.parts[0].text;
+    const response = await client.generateText({
+      model: 'gemini-pro',
+      prompt,
+    });
+    return response.text;
   } catch (error) {
-    console.error('Error analyzing vulnerability:', error);
+    console.error('❌ Error analyzing vulnerability:', error.message);
     return 'Error occurred while analyzing vulnerability';
   }
 };
-
-// Now, only the necessary exports
-export { getEmbeddings };
